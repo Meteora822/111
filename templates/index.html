@@ -1,0 +1,672 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简易在线记账本</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Libre+Baskerville:wght@400;700&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      :root {
+        --background: oklch(0.9582 0.0152 90.2357);
+        --foreground: oklch(0.3760 0.0225 64.3434);
+        --card: oklch(0.9914 0.0098 87.4695);
+        --card-foreground: oklch(0.3760 0.0225 64.3434);
+        --primary: oklch(0.6180 0.0778 65.5444);
+        --primary-foreground: oklch(1.0000 0 0);
+        --secondary: oklch(0.8846 0.0302 85.5655);
+        --secondary-foreground: oklch(0.4313 0.0300 64.9288);
+        --muted: oklch(0.9239 0.0190 83.0636);
+        --muted-foreground: oklch(0.5391 0.0387 71.1655);
+        --accent: oklch(0.8348 0.0426 88.8064);
+        --accent-foreground: oklch(0.3760 0.0225 64.3434);
+        --border: oklch(0.8606 0.0321 84.5881);
+        --input: oklch(0.8606 0.0321 84.5881);
+        --ring: oklch(0.6180 0.0778 65.5444);
+        --chart-1: oklch(0.6180 0.0778 65.5444);
+        --chart-2: oklch(0.5604 0.0624 68.5805);
+        --chart-3: oklch(0.4851 0.0570 72.6827);
+        --chart-4: oklch(0.6777 0.0624 64.7755);
+        --chart-5: oklch(0.7264 0.0581 66.6967);
+        --font-sans: 'Libre Baskerville', serif;
+        --radius: 0.5rem;
+        --shadow-sm: 2px 3px 5px 0px hsl(28 13% 20% / 0.12), 2px 1px 2px -1px hsl(28 13% 20% / 0.12);
+        --shadow: 2px 3px 5px 0px hsl(28 13% 20% / 0.12), 2px 1px 2px -1px hsl(28 13% 20% / 0.12);
+        --shadow-md: 2px 3px 5px 0px hsl(28 13% 20% / 0.12), 2px 2px 4px -1px hsl(28 13% 20% / 0.12);
+      }
+      
+      * { 
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      
+      body { 
+        font-family: var(--font-sans);
+        background: var(--background);
+        color: var(--foreground);
+        line-height: 1.6;
+        min-height: 100vh;
+      }
+      
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem 1.5rem;
+      }
+      
+      header {
+        text-align: center;
+        margin-bottom: 2rem;
+        padding-bottom: 2rem;
+        border-bottom: 2px solid var(--border);
+      }
+      
+      .summary-card {
+        background: linear-gradient(135deg, var(--primary) 0%, oklch(0.5680 0.0778 65.5444) 100%);
+        border-radius: var(--radius);
+        padding: 2rem;
+        box-shadow: var(--shadow-md);
+        color: white;
+        position: relative;
+        overflow: hidden;
+      }
+      
+      .summary-card-year {
+        background: linear-gradient(135deg, oklch(0.5604 0.0624 68.5805) 0%, oklch(0.4851 0.0570 72.6827) 100%);
+      }
+      
+      .summary-cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+      }
+      
+      .summary-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -10%;
+        width: 300px;
+        height: 300px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 50%;
+      }
+      
+      .summary-content {
+        position: relative;
+        z-index: 1;
+      }
+      
+      .summary-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+        gap: 1rem;
+      }
+      
+      .month-nav-btn {
+        background: rgba(255,255,255,0.2);
+        border: 1px solid rgba(255,255,255,0.3);
+        color: white;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        font-size: 1.5rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        padding: 0;
+        line-height: 1;
+      }
+      
+      .month-nav-btn:hover {
+        background: rgba(255,255,255,0.3);
+        transform: scale(1.1);
+      }
+      
+      .month-nav-btn:active {
+        transform: scale(0.95);
+      }
+      
+      .summary-label {
+        font-size: 1.1rem;
+        opacity: 0.95;
+        flex: 1;
+        text-align: center;
+        font-weight: 600;
+      }
+      
+      .summary-label-wrapper {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.25rem;
+      }
+      
+      .summary-label-small {
+        font-size: 0.85rem;
+        opacity: 0.85;
+        font-weight: 500;
+      }
+      
+      .period-selector {
+        background: rgba(255,255,255,0.15);
+        border: 1px solid rgba(255,255,255,0.3);
+        color: white;
+        padding: 0.35rem 0.75rem;
+        border-radius: calc(var(--radius) - 0.25rem);
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        outline: none;
+        transition: all 0.2s;
+        font-family: var(--font-sans);
+        text-align: center;
+      }
+      
+      .period-selector:hover {
+        background: rgba(255,255,255,0.25);
+      }
+      
+      .period-selector option {
+        background: var(--card);
+        color: var(--foreground);
+      }
+      
+      .category-toggle-btn {
+        padding: 0.5rem 1.5rem;
+        border: 2px solid var(--border);
+        background: var(--card);
+        color: var(--text);
+        border-radius: 2rem;
+        cursor: pointer;
+        font-size: 0.95rem;
+        font-weight: 600;
+        font-family: 'Lora', serif;
+        transition: all 0.2s;
+      }
+      
+      .category-toggle-btn:hover {
+        background: var(--muted);
+        transform: translateY(-1px);
+      }
+      
+      .category-toggle-btn.active {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+      }
+      
+      .summary-amount {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+      }
+      
+      .summary-details {
+        display: flex;
+        gap: 2rem;
+        font-size: 0.95rem;
+        opacity: 0.95;
+      }
+      
+      .summary-details strong {
+        font-weight: 600;
+      }
+      
+      h1 {
+        font-size: clamp(2rem, 5vw, 3rem);
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        color: var(--foreground);
+        letter-spacing: -0.02em;
+      }
+      
+      .subtitle {
+        font-size: 1rem;
+        color: var(--muted-foreground);
+        font-weight: 400;
+      }
+      
+      h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin: 2.5rem 0 1.25rem;
+        color: var(--foreground);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      
+      h2::before {
+        content: '';
+        width: 4px;
+        height: 1.5rem;
+        background: var(--primary);
+        border-radius: 2px;
+      }
+      
+      form {
+        background: var(--card);
+        padding: 2rem;
+        border-radius: var(--radius);
+        margin-bottom: 2rem;
+        box-shadow: var(--shadow-md);
+        border: 1px solid var(--border);
+        transition: all 0.3s ease;
+      }
+      
+      form:hover {
+        box-shadow: 0 8px 24px hsl(28 13% 20% / 0.15);
+        transform: translateY(-2px);
+      }
+      
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+      
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.375rem;
+      }
+      
+      .form-group label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--muted-foreground);
+      }
+      
+      input, select, button {
+        font-family: var(--font-sans);
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
+      }
+      
+      input, select {
+        padding: 0.625rem 0.875rem;
+        border: 1.5px solid var(--border);
+        border-radius: calc(var(--radius) - 0.25rem);
+        background: var(--background);
+        color: var(--foreground);
+      }
+      
+      input:hover, select:hover {
+        border-color: var(--ring);
+      }
+      
+      input:focus, select:focus {
+        outline: none;
+        border-color: var(--ring);
+        box-shadow: 0 0 0 3px oklch(0.6180 0.0778 65.5444 / 0.1);
+      }
+      
+      button {
+        padding: 0.625rem 1.5rem;
+        background: var(--primary);
+        color: var(--primary-foreground);
+        border: none;
+        border-radius: calc(var(--radius) - 0.25rem);
+        cursor: pointer;
+        font-weight: 600;
+        box-shadow: 0 2px 8px oklch(0.6180 0.0778 65.5444 / 0.25);
+      }
+      
+      button:hover {
+        background: oklch(0.5680 0.0778 65.5444);
+        box-shadow: 0 4px 12px oklch(0.6180 0.0778 65.5444 / 0.35);
+        transform: translateY(-1px);
+      }
+      
+      button:active {
+        transform: translateY(0);
+      }
+      
+      button.submit-btn {
+        grid-column: 1 / -1;
+        margin-top: 0.5rem;
+      }
+      
+      button.del {
+        background: var(--muted);
+        color: var(--foreground);
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+        box-shadow: none;
+        font-weight: 500;
+      }
+      
+      button.del:hover {
+        background: var(--accent);
+        color: var(--accent-foreground);
+      }
+      
+      .filter-section {
+        background: var(--card);
+        padding: 1.5rem 2rem;
+        border-radius: var(--radius);
+        margin-bottom: 2rem;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border);
+        display: flex;
+        gap: 1rem;
+        align-items: end;
+        flex-wrap: wrap;
+      }
+      
+      .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.375rem;
+        flex: 1;
+        min-width: 150px;
+      }
+      
+      .filter-group label {
+        color: var(--muted-foreground);
+        font-size: 0.875rem;
+        font-weight: 500;
+      }
+      
+      .table-container {
+        background: var(--card);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-md);
+        border: 1px solid var(--border);
+        overflow: hidden;
+      }
+      
+      table { 
+        width: 100%;
+        border-collapse: collapse;
+      }
+      
+      th, td { 
+        padding: 1rem 0.75rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+      }
+      
+      th { 
+        background: var(--muted);
+        color: var(--foreground);
+        font-weight: 700;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      
+      td {
+        background: var(--card);
+        color: var(--card-foreground);
+      }
+      
+      tbody tr {
+        transition: all 0.2s ease;
+      }
+      
+      tbody tr:hover {
+        background: var(--accent);
+        transform: scale(1.005);
+      }
+      
+      tbody tr:last-child td {
+        border-bottom: none;
+      }
+      
+      .chart-section {
+        background: var(--card);
+        padding: 2rem;
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-md);
+        border: 1px solid var(--border);
+        margin-top: 2rem;
+      }
+      
+      .chart-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        align-items: start;
+      }
+      
+      .chart-container {
+        display: flex;
+        justify-content: center;
+      }
+      
+      .category-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+      
+      .category-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.75rem;
+        background: var(--muted);
+        border-radius: calc(var(--radius) - 0.25rem);
+        transition: all 0.2s;
+      }
+      
+      .category-item:hover {
+        background: var(--accent);
+        transform: translateX(4px);
+      }
+      
+      .category-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        flex-shrink: 0;
+      }
+      
+      .category-info {
+        flex: 1;
+      }
+      
+      .category-name {
+        font-weight: 600;
+        font-size: 0.95rem;
+        margin-bottom: 0.25rem;
+      }
+      
+      .category-percent {
+        font-size: 0.85rem;
+        color: var(--muted-foreground);
+      }
+      
+      .category-amount {
+        font-weight: 700;
+        font-size: 1.1rem;
+        color: var(--foreground);
+      }
+      
+      canvas {
+        max-width: 600px;
+        margin: 1.5rem auto 0;
+        display: block;
+      }
+      
+      @media (max-width: 768px) {
+        .container {
+          padding: 1.5rem 1rem;
+        }
+        
+        .summary-cards-grid {
+          grid-template-columns: 1fr;
+          gap: 1rem;
+        }
+        
+        .summary-card {
+          padding: 1.5rem;
+        }
+        
+        form, .filter-section {
+          padding: 1.25rem;
+        }
+        
+        .form-grid {
+          grid-template-columns: 1fr;
+        }
+        
+        .chart-grid {
+          grid-template-columns: 1fr;
+          gap: 1.5rem;
+        }
+        
+        .summary-amount {
+          font-size: 2rem;
+        }
+        
+        table {
+          font-size: 0.875rem;
+        }
+        
+        th, td {
+          padding: 0.75rem 0.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>简易在线记账本</h1>
+        <p class="subtitle">管理您的日常收支，掌握财务状况</p>
+      </header>
+
+      <!-- 月结余卡片 -->
+      <div class="summary-cards-grid">
+        <div class="summary-card">
+          <div class="summary-content">
+            <div class="summary-header">
+              <button id="prevMonth" class="month-nav-btn">‹</button>
+              <div class="summary-label-wrapper">
+                <div class="summary-label-small">月结余</div>
+                <select id="monthSelector" class="period-selector">
+                  <option value="2025-11">2025年11月</option>
+                </select>
+              </div>
+              <button id="nextMonth" class="month-nav-btn">›</button>
+            </div>
+            <div class="summary-amount" id="monthBalance">¥0.00</div>
+            <div class="summary-details">
+              <span>月收入: <strong id="monthIncome">¥0.00</strong></span>
+              <span>月支出: <strong id="monthExpense">¥0.00</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="summary-card summary-card-year">
+          <div class="summary-content">
+            <div class="summary-header">
+              <button id="prevYear" class="month-nav-btn">‹</button>
+              <div class="summary-label-wrapper">
+                <div class="summary-label-small">年度结余</div>
+                <select id="yearSelector" class="period-selector">
+                  <option value="2025">2025年</option>
+                </select>
+              </div>
+              <button id="nextYear" class="month-nav-btn">›</button>
+            </div>
+            <div class="summary-amount" id="yearBalance">¥0.00</div>
+            <div class="summary-details">
+              <span>年收入: <strong id="yearIncome">¥0.00</strong></span>
+              <span>年支出: <strong id="yearExpense">¥0.00</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <form id="recordForm">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>类型</label>
+            <select name="type">
+              <option value="expense">支出</option>
+              <option value="income">收入</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>金额</label>
+            <input name="amount" placeholder="0.00" type="number" step="0.01" />
+          </div>
+          <div class="form-group">
+            <label>分类</label>
+            <input name="category" placeholder="餐饮/交通/购物" />
+          </div>
+          <div class="form-group">
+            <label>日期</label>
+            <input name="date" type="date" />
+          </div>
+          <div class="form-group">
+            <label>备注</label>
+            <input name="note" placeholder="添加备注信息" />
+          </div>
+          <button type="submit" class="submit-btn">新增记录</button>
+        </div>
+      </form>
+
+      <div class="filter-section">
+        <div class="filter-group">
+          <label>开始日期</label>
+          <input id="start" type="date" />
+        </div>
+        <div class="filter-group">
+          <label>结束日期</label>
+          <input id="end" type="date" />
+        </div>
+        <button id="filterBtn">筛选查询</button>
+      </div>
+
+      <h2>记录列表</h2>
+      <div class="table-container">
+        <table id="recordTable">
+          <thead><tr><th>ID</th><th>类型</th><th>金额</th><th>分类</th><th>日期</th><th>备注</th><th>操作</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <h2>日收支统计</h2>
+      <div class="chart-section">
+        <canvas id="dailyChart" height="80"></canvas>
+      </div>
+
+      <h2>按分类统计</h2>
+      <div class="chart-section">
+        <div style="margin-bottom: 1rem; display: flex; justify-content: center; gap: 0.5rem;">
+          <button id="btnExpense" class="category-toggle-btn active">💸 支出</button>
+          <button id="btnIncome" class="category-toggle-btn">💵 收入</button>
+        </div>
+        <div class="chart-grid">
+          <div class="chart-container">
+            <canvas id="pieChart" width="400" height="300"></canvas>
+          </div>
+          <div class="category-list" id="categoryList">
+            <!-- 分类详情将在这里动态生成 -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="/static/main.js"></script>
+  </body>
+</html>
